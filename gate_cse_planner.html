@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GATE CSE Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0b;--bg2:#111113;--bg3:#18181c;--bg4:#1e1e24;
+  --border:#252529;--border2:#32323a;--border3:#42424e;
+  --text:#edebe8;--text2:#9896a0;--text3:#55545e;
+  --green:#7fff6a;--green-dim:rgba(127,255,106,0.1);--green-border:rgba(127,255,106,0.25);
+  --amber:#ffb347;--amber-dim:rgba(255,179,71,0.1);--amber-border:rgba(255,179,71,0.25);
+  --blue:#5b9cf6;--blue-dim:rgba(91,156,246,0.1);--blue-border:rgba(91,156,246,0.25);
+  --red:#ff6b6b;--red-dim:rgba(255,107,107,0.1);
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+  --r:8px;--r-sm:5px;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+button{font-family:var(--sans);cursor:pointer}
+input,textarea{font-family:var(--sans)}
+
+/* NAV TABS */
+.nav{display:flex;border-bottom:1px solid var(--border);padding:0 20px;background:var(--bg);position:sticky;top:0;z-index:100;gap:0}
+.nav-tab{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:14px 16px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;white-space:nowrap}
+.nav-tab:hover{color:var(--text2)}
+.nav-tab.active{color:var(--text);border-bottom-color:var(--green)}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.streak-badge{font-family:var(--mono);font-size:11px;color:var(--amber);display:flex;align-items:center;gap:5px}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--amber);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.date-badge{font-family:var(--mono);font-size:10px;color:var(--text3)}
+
+/* VIEWS */
+.view{display:none;padding:20px}
+.view.active{display:block}
+@media(max-width:600px){.view{padding:14px}}
+
+/* ─── TODAY VIEW ─── */
+.today-top{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+@media(max-width:520px){.today-top{grid-template-columns:1fr}}
+
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.stat-label{font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.stat-val{font-family:var(--mono);font-size:26px;font-weight:700}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.stat-bar{height:3px;background:var(--border2);border-radius:2px;margin-top:10px;overflow:hidden}
+.stat-bar-fill{height:100%;border-radius:2px;transition:width 0.4s}
+
+.section-title{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* DAILY LOG */
+.log-input-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:14px}
+.log-date-row{font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:10px}
+.log-input-row{display:flex;gap:8px}
+.log-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-size:13px;padding:8px 12px;outline:none;transition:border-color 0.15s}
+.log-input:focus{border-color:var(--border3)}
+.log-input::placeholder{color:var(--text3)}
+.log-btn{background:var(--green-dim);border:1px solid var(--green-border);color:var(--green);border-radius:var(--r-sm);font-size:12px;padding:8px 14px;white-space:nowrap;font-family:var(--mono);transition:background 0.15s}
+.log-btn:hover{background:rgba(127,255,106,0.18)}
+
+.log-list{display:flex;flex-direction:column;gap:6px}
+.log-day-group{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.log-day-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer}
+.log-day-header:hover{background:var(--bg3)}
+.log-day-date{font-family:var(--mono);font-size:11px;color:var(--text2);font-weight:600}
+.log-day-count{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.log-day-chevron{font-size:10px;color:var(--text3);transition:transform 0.2s}
+.log-day-chevron.open{transform:rotate(180deg)}
+.log-day-items{padding:6px 14px 10px;display:flex;flex-direction:column;gap:4px}
+.log-item{display:flex;align-items:flex-start;gap:8px;padding:4px 0}
+.log-item-dot{width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:5px}
+.log-item-text{font-size:13px;color:var(--text2);flex:1;line-height:1.5}
+.log-item-del{font-size:11px;color:var(--text3);cursor:pointer;padding:2px 5px;border-radius:3px;border:none;background:none}
+.log-item-del:hover{color:var(--red);background:var(--red-dim)}
+
+/* ─── SUBJECTS VIEW ─── */
+.phases-wrap{display:flex;flex-direction:column;gap:20px}
+.phase-header-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.phase-pill{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:0.08em;padding:3px 10px;border-radius:20px;text-transform:uppercase;flex-shrink:0}
+.phase-pill.prep{background:var(--blue-dim);color:var(--blue);border:1px solid var(--blue-border)}
+.phase-pill.revision{background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber-border)}
+.phase-pill.final{background:var(--green-dim);color:var(--green);border:1px solid var(--green-border)}
+.phase-line{flex:1;height:1px;background:var(--border)}
+
+.months-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.month-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;cursor:pointer;transition:border-color 0.15s,background 0.15s;position:relative}
+.month-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:var(--r) var(--r) 0 0;background:transparent;transition:background 0.2s}
+.month-card.now{border-color:rgba(127,255,106,0.35)}
+.month-card.now::before{background:var(--green)}
+.month-card:hover{border-color:var(--border3);background:var(--bg3)}
+.month-card.open{border-color:var(--border3);background:var(--bg3)}
+.mc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.mc-name{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:0.04em}
+.mc-now{font-family:var(--mono);font-size:9px;color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);padding:1px 6px;border-radius:20px}
+.mc-subs{font-size:11px;color:var(--text2);margin-bottom:10px;min-height:28px;line-height:1.5}
+.mc-stats{display:flex;justify-content:space-between}
+.mc-done{font-family:var(--mono);font-size:11px;color:var(--text3)}
+.mc-pct{font-family:var(--mono);font-size:11px}
+.mc-bar{height:2px;background:var(--border);border-radius:1px;margin-top:5px;overflow:hidden}
+.mc-bar-fill{height:100%;border-radius:1px;transition:width 0.4s}
+
+/* TASK PANEL */
+.task-panel{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);margin-top:10px;overflow:hidden;animation:fd 0.18s ease}
+@keyframes fd{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+.tp-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+.tp-title{font-size:13px;font-weight:600;color:var(--text)}
+.tp-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.tp-close{font-size:20px;color:var(--text3);cursor:pointer;padding:0 4px;line-height:1;border:none;background:none;color:var(--text3)}
+.tp-close:hover{color:var(--text2)}
+.tp-tasks{padding:8px 16px}
+.task-row{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);position:relative}
+.task-row:last-child{border-bottom:none}
+.chk{width:16px;height:16px;border:1.5px solid var(--border3);border-radius:4px;flex-shrink:0;margin-top:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;background:transparent}
+.chk.done{background:var(--green);border-color:var(--green)}
+.chk.done::after{content:'✓';font-size:9px;color:#000;font-weight:700}
+.chk:hover:not(.done){border-color:var(--text3)}
+.task-text-wrap{flex:1;display:flex;align-items:flex-start;gap:6px}
+.task-text{font-size:13px;color:var(--text2);cursor:pointer;line-height:1.5;flex:1;padding-top:1px}
+.task-text.done{text-decoration:line-through;color:var(--text3)}
+.task-text[contenteditable=true]{outline:none;background:var(--bg3);border-radius:3px;padding:1px 4px;color:var(--text);border:1px solid var(--border2)}
+.task-actions{display:flex;gap:2px;flex-shrink:0;margin-top:2px}
+.task-act-btn{font-size:11px;color:var(--text3);cursor:pointer;padding:2px 5px;border-radius:3px;border:none;background:none;transition:color 0.12s,background 0.12s}
+.task-act-btn:hover.edit-btn{color:var(--blue);background:var(--blue-dim)}
+.task-act-btn:hover.del-btn{color:var(--red);background:var(--red-dim)}
+.edit-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-size:13px;padding:4px 8px;outline:none;font-family:var(--sans)}
+.edit-input:focus{border-color:var(--border3)}
+.edit-save{font-size:11px;color:var(--green);cursor:pointer;padding:2px 6px;border-radius:3px;border:1px solid var(--green-border);background:var(--green-dim);font-family:var(--mono)}
+.tp-add{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border)}
+.tp-add-inp{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-size:13px;padding:7px 11px;outline:none}
+.tp-add-inp:focus{border-color:var(--border2)}
+.tp-add-inp::placeholder{color:var(--text3)}
+.tp-add-btn{background:var(--green-dim);border:1px solid var(--green-border);color:var(--green);border-radius:var(--r-sm);font-size:12px;padding:7px 14px;font-family:var(--mono);white-space:nowrap;transition:background 0.15s}
+.tp-add-btn:hover{background:rgba(127,255,106,0.2)}
+
+/* ─── HISTORY VIEW ─── */
+.history-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+@media(max-width:480px){.history-stats{grid-template-columns:repeat(2,1fr)}}
+.hstat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;text-align:center}
+.hstat-num{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--green)}
+.hstat-lbl{font-size:11px;color:var(--text3);margin-top:3px}
+
+.heatmap-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:20px;overflow-x:auto}
+.heatmap-title{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:14px}
+.heatmap-grid{display:flex;gap:3px;align-items:flex-start}
+.hm-col{display:flex;flex-direction:column;gap:3px}
+.hm-cell{width:13px;height:13px;border-radius:2px;background:var(--border);position:relative}
+.hm-cell[data-count="0"]{background:var(--border)}
+.hm-cell[data-count="1"]{background:rgba(127,255,106,0.25)}
+.hm-cell[data-count="2"]{background:rgba(127,255,106,0.45)}
+.hm-cell[data-count="3"]{background:rgba(127,255,106,0.65)}
+.hm-cell[data-count="4"]{background:var(--green)}
+.hm-cell:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100%+4px);left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--border2);color:var(--text2);font-size:10px;padding:3px 7px;border-radius:4px;white-space:nowrap;z-index:10;font-family:var(--mono);pointer-events:none}
+
+.hist-all-log{display:flex;flex-direction:column;gap:6px}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px}
+.empty-icon{font-size:28px;margin-bottom:8px;opacity:0.5}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-tab active" onclick="switchTab('today')">Today</div>
+  <div class="nav-tab" onclick="switchTab('subjects')">Subjects</div>
+  <div class="nav-tab" onclick="switchTab('history')">History</div>
+  <div class="nav-right">
+    <span class="streak-badge" id="streak-el"></span>
+    <span class="date-badge" id="date-el"></span>
+  </div>
+</nav>
+
+<!-- TODAY -->
+<div class="view active" id="view-today">
+  <div class="today-top">
+    <div class="stat-card" id="stat-month"></div>
+    <div class="stat-card" id="stat-alltime"></div>
+  </div>
+  <div class="section-title">Log today's tasks</div>
+  <div class="log-input-wrap">
+    <div class="log-date-row" id="log-date-row"></div>
+    <div class="log-input-row">
+      <input class="log-input" id="log-inp" placeholder="What did you study / complete today?" onkeydown="if(event.key==='Enter')logTask()">
+      <button class="log-btn" onclick="logTask()">+ Log</button>
+    </div>
+  </div>
+  <div class="section-title">Recent log</div>
+  <div id="recent-log"></div>
+</div>
+
+<!-- SUBJECTS -->
+<div class="view" id="view-subjects">
+  <div class="phases-wrap" id="phases-wrap"></div>
+</div>
+
+<!-- HISTORY -->
+<div class="view" id="view-history">
+  <div class="history-stats" id="hist-stats"></div>
+  <div class="section-title">Activity heatmap</div>
+  <div class="heatmap-wrap"><div class="heatmap-title">Daily tasks logged — last 6 months</div><div id="heatmap-grid"></div></div>
+  <div class="section-title">Full log</div>
+  <div id="hist-all"></div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+const PHASES = [
+  { id:'prep', label:'Subject preparation', cls:'prep', months:[
+    {id:'jun',name:'June',mi:5,subs:'Data Structures + Algorithms',tasks:[
+      'Complete DS theory (arrays, linked list, trees, graphs)',
+      'Solve 30 DS standard problems',
+      'Complete Algorithms (sorting, searching, DP basics)',
+      'Solve 30 Algorithm problems',
+      'Take 2 subject-wise tests'
+    ]},
+    {id:'jul',name:'July',mi:6,subs:'DBMS + OS',tasks:[
+      'Complete DBMS (ER, SQL, normalization, transactions)',
+      'Solve 25 DBMS problems & past year questions',
+      'Complete OS (processes, scheduling, memory, deadlock)',
+      'Solve 25 OS problems & past year questions',
+      'Take 2 subject-wise tests'
+    ]},
+    {id:'aug',name:'August',mi:7,subs:'TOC + Compiler Design',tasks:[
+      'Complete TOC (FA, PDA, TM, decidability)',
+      'Solve 30 TOC problems',
+      'Complete Compiler Design (parsing, code gen)',
+      'Solve 20 Compiler problems',
+      'Take 2 subject-wise tests'
+    ]},
+    {id:'sep',name:'September',mi:8,subs:'CN + COA',tasks:[
+      'Complete CN (layers, TCP/IP, routing, congestion)',
+      'Solve 25 CN problems & past year questions',
+      'Complete COA (pipeline, cache, memory hierarchy)',
+      'Solve 25 COA problems',
+      'Take 2 subject-wise tests'
+    ]},
+    {id:'oct',name:'October',mi:9,subs:'Maths + Digital Logic',tasks:[
+      'Complete Discrete Maths (logic, graph theory, counting)',
+      'Complete Linear Algebra & Calculus topics',
+      'Complete Digital Logic (gates, flip-flops, circuits)',
+      'Solve 40 Maths + DL problems',
+      'Take 2 subject-wise tests'
+    ]},
+  ]},
+  { id:'revision', label:'Revision & mocks', cls:'revision', months:[
+    {id:'nov',name:'November',mi:10,subs:'Full revision + mocks start',tasks:[
+      'Revise DS & Algorithms (notes + weak areas)',
+      'Revise DBMS & OS',
+      'Revise TOC & Compiler Design',
+      'Take 2 full mock tests, analyse errors',
+      'Maintain error log notebook'
+    ]},
+    {id:'dec',name:'December',mi:11,subs:'Mocks + weak area focus',tasks:[
+      'Revise CN, COA, Maths, DL',
+      'Take 4 full mock tests',
+      'Dedicate 1 week to weakest 2 subjects',
+      'Analyse all mock errors thoroughly',
+      'Revise standard formulas & theorems'
+    ]},
+  ]},
+  { id:'final', label:'Final sprint', cls:'final', months:[
+    {id:'jan',name:'January',mi:0,subs:'Practice + rapid revision',tasks:[
+      'Daily 1 full mock test',
+      'Analyse each mock same day',
+      'Quick revision of all subjects (notes only)',
+      'Revise previous year GATE papers',
+      'No new topics — consolidate only'
+    ]},
+    {id:'feb',name:'February',mi:1,subs:'Final revision + exam',tasks:[
+      'Light practice — 1 mock every 2 days',
+      'Final read-through of short notes',
+      'Revise high-weightage topics',
+      'Rest & stay healthy before exam',
+      'GATE CSE Exam 🎯'
+    ]},
+  ]},
+];
+const ALL_MONTHS = PHASES.flatMap(p=>p.months);
+
+const SK = 'gate_2026_v3';
+let S = {};
+try{ S = JSON.parse(localStorage.getItem(SK)||'{}'); }catch(e){}
+if(!S.months) S.months={};
+if(!S.log) S.log={};      // { "2026-06-01": [{id,text},...] }
+if(!S.meta) S.meta={streak:0,lastActive:null};
+
+function save(){ try{ localStorage.setItem(SK,JSON.stringify(S)); }catch(e){} }
+
+// init month task arrays from defaults if not exist
+ALL_MONTHS.forEach(m=>{
+  if(!S.months[m.id])
+    S.months[m.id]={ tasks: m.tasks.map((t,i)=>({id:i+'_'+Date.now(),text:t,done:false})) };
+});
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+function fmtDate(iso){
+  const d=new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+}
+function currentMonthId(){
+  const m=new Date().getMonth();
+  const found=ALL_MONTHS.find(mo=>mo.mi===m);
+  return found?found.id:null;
+}
+function pct(done,total){ return total?Math.round(done/total*100):0; }
+function pctCol(p){ return p>=80?'var(--green)':p>=40?'var(--amber)':'var(--blue)'; }
+function uid(){ return Math.random().toString(36).slice(2,8); }
+function allLogCount(){
+  return Object.values(S.log).reduce((a,arr)=>a+(arr?arr.length:0),0);
+}
+function updateStreak(){
+  const today=todayKey();
+  const meta=S.meta;
+  if(meta.lastActive===today) return;
+  const yest=new Date(); yest.setDate(yest.getDate()-1);
+  const yestKey=yest.toISOString().slice(0,10);
+  meta.streak = meta.lastActive===yestKey ? (meta.streak||0)+1 : 1;
+  meta.lastActive=today;
+  save();
+}
+
+// ── TAB SWITCH ────────────────────────────────────────────────────────────
+let curTab='today';
+let openMonth=null;
+let editingTask=null; // {monthId, taskId}
+
+function switchTab(tab){
+  curTab=tab;
+  document.querySelectorAll('.nav-tab').forEach((el,i)=>{
+    el.classList.toggle('active',['today','subjects','history'][i]===tab);
+  });
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+tab).classList.add('active');
+  if(tab==='today') renderToday();
+  else if(tab==='subjects') renderSubjects();
+  else if(tab==='history') renderHistory();
+}
+
+// ── HEADER ────────────────────────────────────────────────────────────────
+function renderHeader(){
+  const now=new Date();
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('date-el').textContent=`${days[now.getDay()]} ${now.getDate()} ${mons[now.getMonth()]}`;
+  const s=S.meta.streak||0;
+  document.getElementById('streak-el').innerHTML= s>0
+    ? `<span class="sdot"></span>${s}d streak` : '';
+}
+
+// ── TODAY ─────────────────────────────────────────────────────────────────
+function renderToday(){
+  renderHeader();
+  // stat: current month
+  const curId=currentMonthId();
+  const cur=ALL_MONTHS.find(m=>m.id===curId);
+  const mStat=document.getElementById('stat-month');
+  if(cur){
+    const ms=S.months[cur.id];
+    const done=ms.tasks.filter(t=>t.done).length;
+    const tot=ms.tasks.length;
+    const p=pct(done,tot);
+    mStat.innerHTML=`<div class="stat-label">This month · ${cur.name}</div>
+      <div class="stat-val" style="color:${pctCol(p)}">${done}<span style="font-size:14px;color:var(--text3)">/${tot}</span></div>
+      <div class="stat-sub">${cur.subs}</div>
+      <div class="stat-bar"><div class="stat-bar-fill" style="width:${p}%;background:${pctCol(p)}"></div></div>`;
+  } else {
+    mStat.innerHTML=`<div class="stat-label">This month</div><div class="stat-val" style="color:var(--text3)">—</div>`;
+  }
+  // stat: all-time log
+  const total=allLogCount();
+  const todayCount=(S.log[todayKey()]||[]).length;
+  const days=Object.keys(S.log).filter(k=>(S.log[k]||[]).length>0).length;
+  document.getElementById('stat-alltime').innerHTML=`
+    <div class="stat-label">All-time logged</div>
+    <div class="stat-val" style="color:var(--green)">${total}</div>
+    <div class="stat-sub">${todayCount} today · ${days} active day${days!==1?'s':''}</div>
+    <div class="stat-bar"><div class="stat-bar-fill" style="width:${Math.min(100,total/2)}%;background:var(--green)"></div></div>`;
+
+  // date row
+  document.getElementById('log-date-row').textContent='Logging for: '+fmtDate(todayKey());
+
+  // recent log (last 7 days)
+  const keys=Object.keys(S.log).sort().reverse().slice(0,7);
+  const el=document.getElementById('recent-log');
+  if(!keys.length){ el.innerHTML=`<div class="empty"><div class="empty-icon">📋</div>Nothing logged yet. Start by adding what you studied today!</div>`; return; }
+  el.innerHTML=keys.map(k=>{
+    const items=S.log[k]||[];
+    if(!items.length) return '';
+    const isToday=k===todayKey();
+    return `<div class="log-day-group">
+      <div class="log-day-header" onclick="toggleLogDay('${k}')">
+        <div class="log-day-date">${isToday?'Today — ':''} ${fmtDate(k)}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="log-day-count">${items.length} task${items.length!==1?'s':''}</div>
+          <div class="log-day-chevron open" id="chev-${k}">▼</div>
+        </div>
+      </div>
+      <div class="log-day-items" id="logday-${k}">
+        ${items.map(it=>`
+          <div class="log-item" id="logitem-${it.id}">
+            <div class="log-item-dot"></div>
+            <div class="log-item-text">${escHtml(it.text)}</div>
+            <button class="log-item-del" onclick="delLogItem('${k}','${it.id}')" title="Delete">✕</button>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleLogDay(k){
+  const el=document.getElementById('logday-'+k);
+  const ch=document.getElementById('chev-'+k);
+  if(!el) return;
+  const open=el.style.display!=='none';
+  el.style.display=open?'none':'flex';
+  el.style.flexDirection='column';
+  if(ch) ch.classList.toggle('open',!open);
+}
+
+function logTask(){
+  const inp=document.getElementById('log-inp');
+  const text=inp.value.trim();
+  if(!text) return;
+  const k=todayKey();
+  if(!S.log[k]) S.log[k]=[];
+  S.log[k].push({id:uid(),text});
+  inp.value='';
+  updateStreak();
+  save();
+  renderToday();
+  inp.focus();
+}
+
+function delLogItem(dateKey,id){
+  if(!S.log[dateKey]) return;
+  S.log[dateKey]=S.log[dateKey].filter(i=>i.id!==id);
+  save();
+  renderToday();
+}
+
+function escHtml(t){ return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── SUBJECTS ──────────────────────────────────────────────────────────────
+function renderSubjects(){
+  const curId=currentMonthId();
+  const wrap=document.getElementById('phases-wrap');
+  wrap.innerHTML=PHASES.map(phase=>`
+    <div>
+      <div class="phase-header-row">
+        <div class="phase-pill ${phase.cls}">${phase.label}</div>
+        <div class="phase-line"></div>
+      </div>
+      <div class="months-grid">
+        ${phase.months.map(m=>monthCardHTML(m,curId)).join('')}
+      </div>
+      ${openMonth && phase.months.find(m=>m.id===openMonth) ? taskPanelHTML(openMonth) : ''}
+    </div>
+  `).join('');
+}
+
+function monthCardHTML(m, curId){
+  const ms=S.months[m.id];
+  const done=ms.tasks.filter(t=>t.done).length;
+  const tot=ms.tasks.length;
+  const p=pct(done,tot);
+  const isCur=m.id===curId;
+  const isOpen=openMonth===m.id;
+  return `<div class="month-card${isCur?' now':''}${isOpen?' open':''}" onclick="toggleMonth('${m.id}')">
+    <div class="mc-top">
+      <div class="mc-name">${m.name.toUpperCase()}</div>
+      ${isCur?'<div class="mc-now">NOW</div>':''}
+    </div>
+    <div class="mc-subs">${m.subs}</div>
+    <div class="mc-stats">
+      <span class="mc-done">${done}/${tot} tasks</span>
+      <span class="mc-pct" style="color:${pctCol(p)}">${p}%</span>
+    </div>
+    <div class="mc-bar"><div class="mc-bar-fill" style="width:${p}%;background:${pctCol(p)}"></div></div>
+  </div>`;
+}
+
+function taskPanelHTML(mId){
+  const m=ALL_MONTHS.find(x=>x.id===mId);
+  if(!m) return '';
+  const ms=S.months[mId];
+  const tasksHTML=ms.tasks.map(t=>{
+    const isEditing=editingTask&&editingTask.monthId===mId&&editingTask.taskId===t.id;
+    return `<div class="task-row" id="tr-${t.id}">
+      <div class="chk${t.done?' done':''}" onclick="toggleTask('${mId}','${t.id}')"></div>
+      ${isEditing
+        ? `<input class="edit-input" id="ei-${t.id}" value="${escHtml(t.text)}" onkeydown="if(event.key==='Enter')saveEdit('${mId}','${t.id}');if(event.key==='Escape')cancelEdit()">`
+        : `<div class="task-text${t.done?' done':''}" onclick="toggleTask('${mId}','${t.id}')">${escHtml(t.text)}</div>`}
+      <div class="task-actions">
+        ${isEditing
+          ? `<button class="edit-save" onclick="saveEdit('${mId}','${t.id}')">Save</button>`
+          : `<button class="task-act-btn edit-btn" onclick="startEdit('${mId}','${t.id}')" title="Edit">✎</button>`}
+        <button class="task-act-btn del-btn" onclick="delTask('${mId}','${t.id}')" title="Delete">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="task-panel">
+    <div class="tp-header">
+      <div>
+        <div class="tp-title">${m.name} — tasks</div>
+        <div class="tp-sub">${m.subs}</div>
+      </div>
+      <button class="tp-close" onclick="toggleMonth('${mId}')">×</button>
+    </div>
+    <div class="tp-tasks">${tasksHTML||'<div class="empty" style="padding:20px 0">No tasks yet. Add one below.</div>'}</div>
+    <div class="tp-add">
+      <input class="tp-add-inp" id="tpadd-${mId}" placeholder="Add a new task..." onkeydown="if(event.key==='Enter')addTask('${mId}')">
+      <button class="tp-add-btn" onclick="addTask('${mId}')">+ Add</button>
+    </div>
+  </div>`;
+}
+
+function toggleMonth(id){
+  openMonth=openMonth===id?null:id;
+  editingTask=null;
+  renderSubjects();
+}
+
+function toggleTask(mId,tId){
+  const task=S.months[mId].tasks.find(t=>t.id===tId);
+  if(task){ task.done=!task.done; save(); renderSubjects(); }
+}
+
+function startEdit(mId,tId){
+  editingTask={monthId:mId,taskId:tId};
+  renderSubjects();
+  setTimeout(()=>{ const el=document.getElementById('ei-'+tId); if(el){el.focus();el.select();} },30);
+}
+
+function cancelEdit(){ editingTask=null; renderSubjects(); }
+
+function saveEdit(mId,tId){
+  const inp=document.getElementById('ei-'+tId);
+  if(!inp) return;
+  const val=inp.value.trim();
+  if(!val){ cancelEdit(); return; }
+  const task=S.months[mId].tasks.find(t=>t.id===tId);
+  if(task){ task.text=val; save(); }
+  editingTask=null;
+  renderSubjects();
+}
+
+function delTask(mId,tId){
+  S.months[mId].tasks=S.months[mId].tasks.filter(t=>t.id!==tId);
+  save();
+  renderSubjects();
+}
+
+function addTask(mId){
+  const inp=document.getElementById('tpadd-'+mId);
+  if(!inp||!inp.value.trim()) return;
+  S.months[mId].tasks.push({id:uid(),text:inp.value.trim(),done:false});
+  inp.value='';
+  save();
+  renderSubjects();
+  setTimeout(()=>{ const el=document.getElementById('tpadd-'+mId); if(el) el.focus(); },30);
+}
+
+// ── HISTORY ───────────────────────────────────────────────────────────────
+function renderHistory(){
+  // stats
+  const totalLogged=allLogCount();
+  const activeDays=Object.keys(S.log).filter(k=>(S.log[k]||[]).length>0).length;
+  const totalTasks=ALL_MONTHS.reduce((a,m)=>a+S.months[m.id].tasks.length,0);
+  const doneTasks=ALL_MONTHS.reduce((a,m)=>a+S.months[m.id].tasks.filter(t=>t.done).length,0);
+  const best=Object.values(S.log).reduce((a,arr)=>Math.max(a,(arr||[]).length),0);
+
+  document.getElementById('hist-stats').innerHTML=`
+    <div class="hstat"><div class="hstat-num">${totalLogged}</div><div class="hstat-lbl">Tasks logged</div></div>
+    <div class="hstat"><div class="hstat-num">${activeDays}</div><div class="hstat-lbl">Active days</div></div>
+    <div class="hstat"><div class="hstat-num">${doneTasks}/${totalTasks}</div><div class="hstat-lbl">Subject tasks done</div></div>
+    <div class="hstat"><div class="hstat-num">${S.meta.streak||0}</div><div class="hstat-lbl">Current streak</div></div>
+    <div class="hstat"><div class="hstat-num">${best}</div><div class="hstat-lbl">Best day</div></div>
+    <div class="hstat"><div class="hstat-num">${activeDays?Math.round(totalLogged/activeDays):0}</div><div class="hstat-lbl">Avg per day</div></div>
+  `;
+
+  // heatmap — last ~26 weeks
+  const today=new Date();
+  const cells=[];
+  for(let i=181;i>=0;i--){
+    const d=new Date(today); d.setDate(d.getDate()-i);
+    const k=d.toISOString().slice(0,10);
+    const cnt=(S.log[k]||[]).length;
+    cells.push({k,cnt,d});
+  }
+  // group by week col
+  const cols=[];
+  let col=[];
+  cells.forEach((c,i)=>{
+    col.push(c);
+    if(col.length===7||i===cells.length-1){ cols.push(col); col=[]; }
+  });
+  document.getElementById('heatmap-grid').innerHTML=`<div class="heatmap-grid">${
+    cols.map(wk=>`<div class="hm-col">${
+      wk.map(c=>`<div class="hm-cell" data-count="${Math.min(c.cnt,4)}" data-tip="${c.k}: ${c.cnt} task${c.cnt!==1?'s':''}"></div>`).join('')
+    }</div>`).join('')
+  }</div>`;
+
+  // full log
+  const keys=Object.keys(S.log).sort().reverse();
+  const el=document.getElementById('hist-all');
+  if(!keys.length){ el.innerHTML=`<div class="empty"><div class="empty-icon">📅</div>No history yet.</div>`; return; }
+  el.innerHTML=`<div class="hist-all-log">${keys.map(k=>{
+    const items=S.log[k]||[];
+    if(!items.length) return '';
+    return `<div class="log-day-group">
+      <div class="log-day-header" style="cursor:default">
+        <div class="log-day-date">${k===todayKey()?'Today — ':''} ${fmtDate(k)}</div>
+        <div class="log-day-count">${items.length} task${items.length!==1?'s':''}</div>
+      </div>
+      <div class="log-day-items">
+        ${items.map(it=>`<div class="log-item">
+          <div class="log-item-dot"></div>
+          <div class="log-item-text">${escHtml(it.text)}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+updateStreak();
+save();
+renderHeader();
+renderToday();
+</script>
+</body>
+</html>
