@@ -136,6 +136,12 @@ input,textarea{font-family:var(--sans)}
 .tp-add-inp::placeholder{color:var(--text3)}
 .tp-add-btn{background:var(--green-dim);border:1px solid var(--green-border);color:var(--green);border-radius:var(--r-sm);font-size:12px;padding:7px 14px;font-family:var(--mono);white-space:nowrap;transition:background 0.15s}
 .tp-add-btn:hover{background:rgba(127,255,106,0.2)}
+.subs-row{display:flex;align-items:center;gap:6px;margin-top:2px}
+.subs-edit-btn{font-size:11px;color:var(--text3);border:none;background:none;cursor:pointer;padding:1px 4px;border-radius:3px;line-height:1;transition:color 0.12s,background 0.12s;flex-shrink:0}
+.subs-edit-btn:hover{color:var(--blue);background:var(--blue-dim)}
+.subs-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-size:12px;padding:4px 8px;outline:none;font-family:var(--sans)}
+.subs-input:focus{border-color:var(--border3)}
+.subs-save{font-size:11px;color:var(--green);cursor:pointer;padding:3px 8px;border-radius:3px;border:1px solid var(--green-border);background:var(--green-dim);font-family:var(--mono);white-space:nowrap}
 
 /* ─── HISTORY VIEW ─── */
 .history-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
@@ -299,7 +305,8 @@ function save(){ try{ localStorage.setItem(SK,JSON.stringify(S)); }catch(e){} }
 // init month task arrays from defaults if not exist
 ALL_MONTHS.forEach(m=>{
   if(!S.months[m.id])
-    S.months[m.id]={ tasks: m.tasks.map((t,i)=>({id:i+'_'+Date.now(),text:t,done:false})) };
+    S.months[m.id]={ tasks: m.tasks.map((t,i)=>({id:i+'_'+Date.now(),text:t,done:false})), subs: m.subs };
+  if(!S.months[m.id].subs) S.months[m.id].subs = m.subs;
 });
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
@@ -334,6 +341,7 @@ function updateStreak(){
 let curTab='today';
 let openMonth=null;
 let editingTask=null; // {monthId, taskId}
+let editingSubs=null; // monthId
 
 function switchTab(tab){
   curTab=tab;
@@ -372,7 +380,7 @@ function renderToday(){
     const p=pct(done,tot);
     mStat.innerHTML=`<div class="stat-label">This month · ${cur.name}</div>
       <div class="stat-val" style="color:${pctCol(p)}">${done}<span style="font-size:14px;color:var(--text3)">/${tot}</span></div>
-      <div class="stat-sub">${cur.subs}</div>
+      <div class="stat-sub">${S.months[cur.id].subs||cur.subs}</div>
       <div class="stat-bar"><div class="stat-bar-fill" style="width:${p}%;background:${pctCol(p)}"></div></div>`;
   } else {
     mStat.innerHTML=`<div class="stat-label">This month</div><div class="stat-val" style="color:var(--text3)">—</div>`;
@@ -476,12 +484,13 @@ function monthCardHTML(m, curId){
   const p=pct(done,tot);
   const isCur=m.id===curId;
   const isOpen=openMonth===m.id;
+  const subsDisplay=ms.subs||m.subs;
   return `<div class="month-card${isCur?' now':''}${isOpen?' open':''}" onclick="toggleMonth('${m.id}')">
     <div class="mc-top">
       <div class="mc-name">${m.name.toUpperCase()}</div>
       ${isCur?'<div class="mc-now">NOW</div>':''}
     </div>
-    <div class="mc-subs">${m.subs}</div>
+    <div class="mc-subs">${subsDisplay}</div>
     <div class="mc-stats">
       <span class="mc-done">${done}/${tot} tasks</span>
       <span class="mc-pct" style="color:${pctCol(p)}">${p}%</span>
@@ -494,6 +503,19 @@ function taskPanelHTML(mId){
   const m=ALL_MONTHS.find(x=>x.id===mId);
   if(!m) return '';
   const ms=S.months[mId];
+  const subsDisplay=ms.subs||m.subs;
+  const isEditingSubs=editingSubs===mId;
+
+  const subsHTML = isEditingSubs
+    ? `<div class="subs-row">
+        <input class="subs-input" id="subs-inp-${mId}" value="${escHtml(subsDisplay)}" onkeydown="if(event.key==='Enter')saveSubs('${mId}');if(event.key==='Escape')cancelSubsEdit()">
+        <button class="subs-save" onclick="saveSubs('${mId}')">Save</button>
+       </div>`
+    : `<div class="subs-row">
+        <div class="tp-sub">${subsDisplay}</div>
+        <button class="subs-edit-btn" onclick="startSubsEdit('${mId}');event.stopPropagation()" title="Edit subjects">✎</button>
+       </div>`;
+
   const tasksHTML=ms.tasks.map(t=>{
     const isEditing=editingTask&&editingTask.monthId===mId&&editingTask.taskId===t.id;
     return `<div class="task-row" id="tr-${t.id}">
@@ -512,9 +534,9 @@ function taskPanelHTML(mId){
 
   return `<div class="task-panel">
     <div class="tp-header">
-      <div>
+      <div style="flex:1">
         <div class="tp-title">${m.name} — tasks</div>
-        <div class="tp-sub">${m.subs}</div>
+        ${subsHTML}
       </div>
       <button class="tp-close" onclick="toggleMonth('${mId}')">×</button>
     </div>
@@ -529,6 +551,25 @@ function taskPanelHTML(mId){
 function toggleMonth(id){
   openMonth=openMonth===id?null:id;
   editingTask=null;
+  editingSubs=null;
+  renderSubjects();
+}
+
+function startSubsEdit(mId){
+  editingSubs=mId;
+  renderSubjects();
+  setTimeout(()=>{ const el=document.getElementById('subs-inp-'+mId); if(el){el.focus();el.select();} },30);
+}
+
+function cancelSubsEdit(){ editingSubs=null; renderSubjects(); }
+
+function saveSubs(mId){
+  const inp=document.getElementById('subs-inp-'+mId);
+  if(!inp) return;
+  const val=inp.value.trim();
+  if(val) S.months[mId].subs=val;
+  editingSubs=null;
+  save();
   renderSubjects();
 }
 
